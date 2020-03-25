@@ -1,0 +1,72 @@
+package com.zy.springcloud.controller;
+
+import com.sun.javafx.tools.packager.Log;
+import com.zy.springcloud.entities.CommonResult;
+import com.zy.springcloud.entities.Payment;
+import com.zy.springcloud.service.PaymentService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.Resource;
+import java.util.List;
+
+@RestController
+@Slf4j
+public class PaymentController {
+    @Resource
+    private PaymentService paymentService;
+
+    @Value("${server.port}")
+    private String serverPort;
+
+    @Resource
+    private DiscoveryClient discoveryClient;
+
+    @PostMapping(value = "/payment/create")
+    public CommonResult create(@RequestBody Payment payment){
+        int result = paymentService.create(payment);
+        Log.info("....插入结果："+result);
+
+        if (result > 0){
+            return new CommonResult(200,"插入数据库成功，端口号为："+serverPort,result);
+        }else{
+            return new CommonResult(444,"插入数据库失败",null);
+        }
+    }
+
+    @GetMapping(value = "/payment/get/{id}")
+    public CommonResult<Payment> getPmById(@PathVariable("id") Integer id){
+        Payment pmById = paymentService.getPmById(id);
+//        Log.info("....插入结果："+pmById+"哈哈哈哈");
+        log.info("....插入结果："+pmById+"哈哈哈哈");
+
+        if (pmById != null){
+            return new CommonResult(200,"查询成功，serverport:"+serverPort,pmById);
+        }else{
+            return new CommonResult(444,"没有对应记录，查询id"+id,null);
+        }
+    }
+
+    public Object discovery(){
+        List<String> services = discoveryClient.getServices();
+        for (String element : services
+             ) {
+            log.info("*****element:"+element);
+        }
+        List<ServiceInstance> instances = discoveryClient.getInstances("CLOUD-PAYMENT-SERVICE");
+        for (ServiceInstance instance : instances
+             ) {
+            log.info(instance.getServiceId()+"\t"+instance.getHost()+"\t"+instance.getPort()+"\t"+instance.getUri());
+        }
+        return this.discoveryClient;
+    }
+
+    @GetMapping(value = "/payment/lb")
+    public String getPaymentLB(){
+        return serverPort;
+    }
+
+}
